@@ -27,6 +27,10 @@ spin_bodies = 1000
 increment = 2
 body_max = 10 ** 9
 drawmode = False
+trailmode = False
+# How many past positions each body keeps for its trail. Bounded, so the
+# cost per body is constant however long the simulation runs.
+TRAIL_LENGTH = 60
 
 BLACK = 0, 0, 0
 WHITE = 255, 255, 255
@@ -113,6 +117,9 @@ class Body:
         self.ya = 0
         self.vx = vx
         self.vy = vy
+        # Recent positions, newest last. A bounded deque so an old body costs
+        # no more to keep than a new one.
+        self.trail = deque(maxlen=TRAIL_LENGTH)
 
     def is_out_of_bounds(self, width, height):
         flag = self.x < -self.radius or self.x > width + self.radius or self.y < -self.radius or self.y > height + self.radius
@@ -195,6 +202,9 @@ class Body:
         self.vy += self.ya
         self.x += self.vx
         self.y += self.vy
+        # Recorded before the bounds check, which teleports a stray body far
+        # off-screen and would otherwise put that jump in the trail.
+        self.trail.append((self.x, self.y))
         self.is_out_of_bounds(s_width, s_height)
 
     def draw(self, screen):
@@ -203,6 +213,23 @@ class Body:
         if (self.is_out_of_bounds(s_width, s_height)):
             return
         pygame.draw.circle(screen, self.color, (px, py), self.radius)
+
+    def draw_trail(self, screen):
+        """Draw the path behind this body, fading to black at the oldest end."""
+        if len(self.trail) < 2:
+            return
+        points = list(self.trail)
+        count = len(points)
+        for i in range(1, count):
+            # 0 at the tail, 1 at the body, so the trail dims into the
+            # background instead of ending on a hard edge.
+            fade = i / count
+            colour = (int(self.color[0] * fade),
+                      int(self.color[1] * fade),
+                      int(self.color[2] * fade))
+            start = (int(points[i - 1][0]), int(points[i - 1][1]))
+            end = (int(points[i][0]), int(points[i][1]))
+            pygame.draw.line(screen, colour, start, end)
 
 
 class PlanetSet:
@@ -582,6 +609,8 @@ if __name__ == '__main__':
                         max_random_radius = change_size()
                     elif event.key == pygame.K_d:
                         drawmode = not (drawmode)
+                    elif event.key == pygame.K_c:
+                        trailmode = not (trailmode)
                     elif event.key == pygame.K_t:
                         BARNES_HUT_THETA = change_THETA()
                     elif event.key == pygame.K_s:
@@ -600,6 +629,10 @@ if __name__ == '__main__':
         update_bodies()
         handle_collisions()
         screen.fill(BLACK)
+        if trailmode:
+            # Trails first so the bodies sit on top of their own paths.
+            for body in inbound:
+                body.draw_trail(screen)
         for body in inbound:
             body.draw(screen)
         if drawmode:

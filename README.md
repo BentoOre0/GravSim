@@ -41,6 +41,7 @@ If `s / d < θ`, the node is sufficiently far away relative to its size, so its 
 * Interactive body creation and orbital spawning
 * Collision detection with momentum-conserving body merging
 * Real-time quadtree rendering
+* Optional motion trails, drawn from each body's own recent positions
 
 ## Implementation
 
@@ -79,6 +80,7 @@ python3 main.py
 | **X**           | Configure galaxy generation parameters             |
 | **T**           | Set the Barnes-Hut threshold `θ`                   |
 | **F**           | Set the maximum random body radius                 |
+| **C**           | Toggle motion trails                               |
 | **D**           | Toggle quadtree visualization                      |
 | **E**           | Clear all bodies                                   |
 
@@ -104,10 +106,14 @@ byte-identical. Only initial conditions and render settings are tuned - notably
 bodies move a few pixels per step rather than tens (the integrator uses `dt = 1`).
 
 
-## Photo dump
 
-Original screenshots from development:
+## Trails
 
-![alt text](IMG_0885.jpeg)
+Press **C** to draw the path behind every body. Each one keeps its last 60
+positions in a bounded deque, so the cost per body stays flat however long the
+simulation runs, and the line fades to black at the tail rather than ending on a
+hard edge.
 
-![alt text](IMG_0884.png)
+This is the live version of the long-exposure render in the gallery above. That
+image accumulates 140 steps onto one canvas offline; this draws a short rolling
+window of the same paths in real time.
